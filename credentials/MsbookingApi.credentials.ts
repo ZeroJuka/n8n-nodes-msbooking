@@ -1,42 +1,67 @@
 import type {
-	IAuthenticateGeneric,
-	ICredentialTestRequest,
-	ICredentialType,
-	INodeProperties,
+    IAuthenticateGeneric,
+    ICredentialTestRequest,
+    ICredentialType,
+    INodeProperties,
 } from 'n8n-workflow';
 
 export class MsbookingApi implements ICredentialType {
-	name = 'msbookingApi';
+    name = 'msbookingApi';
 
-	displayName = 'Msbooking API';
+    displayName = 'Microsoft Graph OAuth2';
 
-	// Link to your community node's README
-	documentationUrl = 'https://github.com/org/-msbooking?tab=readme-ov-file#credentials';
+    documentationUrl = 'https://learn.microsoft.com/graph/api/resources/booking-api-overview';
 
-	properties: INodeProperties[] = [
-		{
-			displayName: 'Access Token',
-			name: 'accessToken',
-			type: 'string',
-			typeOptions: { password: true },
-			required: true,
-			default: '',
-		},
-	];
+    // Use OAuth2 (v2) with Microsoft identity platform
+    extends = ['oAuth2'];
 
-	authenticate: IAuthenticateGeneric = {
-		type: 'generic',
-		properties: {
-			headers: {
-				Authorization: '=Bearer {{$credentials.accessToken}}',
-			},
-		},
-	};
+    properties: INodeProperties[] = [
+        {
+            displayName: 'Scope',
+            name: 'scope',
+            type: 'string',
+            default: 'Bookings.Read.All Bookings.ReadWrite.All',
+            description:
+                'OAuth scopes for Microsoft Graph Bookings. Include at least Bookings.Read.All; for creating appointments, include Bookings.ReadWrite.All.',
+        },
+        {
+            displayName: 'Tenant',
+            name: 'tenantId',
+            type: 'options',
+            default: 'common',
+            options: [
+                { name: 'Common (multi-tenant)', value: 'common' },
+                { name: 'Organizations', value: 'organizations' },
+                { name: 'Consumers', value: 'consumers' },
+            ],
+            description:
+                'Microsoft identity tenant for OAuth. Use common unless you need to restrict to a specific audience.',
+        },
+    ];
 
-	test: ICredentialTestRequest = {
-		request: {
-			baseURL: 'https://api.example.com/v2',
-			url: '/v1/user',
-		},
-	};
+    // Attach bearer token to all requests
+    authenticate: IAuthenticateGeneric = {
+        type: 'generic',
+        properties: {
+            headers: {
+                Authorization: '=Bearer {{$credentials.oauthToken}}',
+            },
+        },
+    };
+
+    oAuth2 = {
+        authorizeUrl: {
+            url: '=https://login.microsoftonline.com/{{$credentials.tenantId}}/oauth2/v2.0/authorize',
+        },
+        accessTokenUrl: {
+            url: '=https://login.microsoftonline.com/{{$credentials.tenantId}}/oauth2/v2.0/token',
+        },
+    } as unknown as Record<string, unknown>;
+
+    test: ICredentialTestRequest = {
+        request: {
+            baseURL: 'https://graph.microsoft.com/v1.0',
+            url: '/me',
+        },
+    };
 }
